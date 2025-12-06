@@ -29,11 +29,11 @@ const normalizeItemPayload = (body) => {
 
 // GET /api/items/search?query=text - partial match lookup for autocomplete.
 router.get("/search", (req, res) => {
-  const query = req.query.query?.trim();
+  const query = req.query.query?.trim(); // is this query global variable ? 
   if (!query) {
     return res.json([]);
   }
-
+  // try for fuzzy matching here 
   // Use LIKE with wildcards to support substring matches, limited to avoid unbounded results.
   const stmt = db.prepare(`
     SELECT * FROM items

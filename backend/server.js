@@ -5,10 +5,10 @@ import itemsRouter from "./routes/items.js";
 import exchangeRouter from "./routes/exchange.js";
 import "./db.js"; // Ensure DB is initialized before routes use it.
 
-dotenv.config();
+dotenv.config(); // file kidhar hai ?? 
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // Allow frontend dev server to call the API.
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || "*" }));

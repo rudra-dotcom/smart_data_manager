@@ -3,9 +3,10 @@ import axios from "axios";
 import ItemForm from "./components/ItemForm.jsx";
 import ItemTable from "./components/ItemTable.jsx";
 import SearchDropdown from "./components/SearchDropdown.jsx";
+import ExportExcel from "./components/ExportExcel.jsx";
 
-// Prefer env override to let users point the frontend at any backend host.
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+// Use VITE_API_URL if provided (prod/alternate host). Otherwise rely on relative /api + Vite proxy.
+const API_BASE = import.meta.env.VITE_API_URL || "";
 
 const emptyItem = {
   name: "",
@@ -23,6 +24,7 @@ export default function App() {
   const [items, setItems] = useState([]);
   const [formData, setFormData] = useState(emptyItem);
   const [editingId, setEditingId] = useState(null);
+  const [originalName, setOriginalName] = useState("");
   const [exchangeRate, setExchangeRate] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
@@ -60,12 +62,15 @@ export default function App() {
     e.preventDefault();
     setStatus("");
     try {
-      if (editingId) {
+      const trimmedName = formData.name.trim();
+      const isRenamingExisting = editingId && originalName && trimmedName !== originalName;
+
+      if (editingId && !isRenamingExisting) {
         await axios.put(`${API_BASE}/api/items/${editingId}`, normalizePayload(formData));
         setStatus("Item updated.");
       } else {
         await axios.post(`${API_BASE}/api/items`, normalizePayload(formData));
-        setStatus("Item created.");
+        setStatus(isRenamingExisting ? "Name changed: saved as new item." : "Item created.");
       }
       resetForm();
       fetchItems();
@@ -92,6 +97,7 @@ export default function App() {
   const handleEdit = (item) => {
     // Pre-fill form with selected item so the user can edit quickly.
     setEditingId(item.id);
+    setOriginalName(item.name ?? "");
     setFormData({
       name: item.name ?? "",
       brand: item.brand ?? "",
@@ -128,6 +134,7 @@ export default function App() {
 
   const resetForm = () => {
     setEditingId(null);
+    setOriginalName("");
     setFormData(emptyItem);
   };
 
@@ -219,7 +226,10 @@ export default function App() {
             Refresh
           </button>
         </div>
-        <ItemTable items={items} onEdit={handleEdit} onDelete={handleDelete} loading={loading} />
+        <div className="grid md:grid-cols-[2fr,1fr] gap-4 items-start">
+          <ItemTable items={items} onEdit={handleEdit} onDelete={handleDelete} loading={loading} />
+          <ExportExcel items={items} />
+        </div>
       </section>
     </div>
   );

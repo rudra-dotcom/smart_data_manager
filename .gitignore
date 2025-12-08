@@ -3,3 +3,8 @@
 /backend/.env
 /frontend/.env
 /backend/inventory.db
+/backend/.env.example
+/frontend/.env.example
+/backend/.env
+/backend/purchase.db
+/backend/base.db

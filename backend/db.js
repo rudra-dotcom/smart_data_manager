@@ -2,27 +2,22 @@ import Database from "better-sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
 
-// Resolve DB file relative to this file so it persists across runs.
+// We keep two DB files as requested: one for the master catalog (sheet 1) and one for purchases (sheet 2).
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dbPath = path.join(__dirname, "inventory.db");
+const baseDbPath = path.join(__dirname, "base.db");
+const purchaseDbPath = path.join(__dirname, "purchase.db");
 
-// Open a persistent SQLite connection. better-sqlite3 is synchronous and fast for local use.
-const db = new Database(dbPath);
+const baseDb = new Database(baseDbPath);
+const purchaseDb = new Database(purchaseDbPath);
 
-// Ensure schema exists on startup.
-db.exec(`
-  CREATE TABLE IF NOT EXISTS items (
+// Base DB: name, carrying, brand_type plus settings for exchange rate.
+baseDb.exec(`
+  CREATE TABLE IF NOT EXISTS base_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    brand TEXT,
-    quality TEXT,
-    ch_price REAL DEFAULT 0,
-    caring TEXT,
-    ppp REAL,
-    retail_price REAL,
-    ws_price REAL,
-    quantity INTEGER DEFAULT 0,
+    carrying REAL DEFAULT 0,
+    brand_type TEXT,
     created_at TEXT DEFAULT (datetime('now'))
   );
 
@@ -32,10 +27,24 @@ db.exec(`
   );
 `);
 
-// Seed a default exchange rate if missing.
-const existingRate = db.prepare("SELECT value FROM settings WHERE key = 'exchange_rate'").get();
+// Purchases DB: depends on exchange rate and carrying from base.
+purchaseDb.exec(`
+  CREATE TABLE IF NOT EXISTS purchases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    price_rmb REAL DEFAULT 0,
+    quantity INTEGER DEFAULT 0,
+    ppp REAL DEFAULT 0,
+    wsp REAL,
+    rp REAL,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+`);
+
+// Seed exchange rate if missing.
+const existingRate = baseDb.prepare("SELECT value FROM settings WHERE key = 'exchange_rate'").get();
 if (!existingRate) {
-  db.prepare("INSERT INTO settings (key, value) VALUES ('exchange_rate', ?)").run(1);
+  baseDb.prepare("INSERT INTO settings (key, value) VALUES ('exchange_rate', ?)").run(1);
 }
 
-export default db;
+export { baseDb, purchaseDb };

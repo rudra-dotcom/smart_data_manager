@@ -1,30 +1,40 @@
 import { Router } from "express";
-import db from "../db.js";
+import { baseDb, purchaseDb } from "../db.js";
 
 const router = Router();
 
-// Fetch the persisted exchange rate for UI consumption.
+const getCarrying = (name) => {
+  const row = baseDb.prepare("SELECT carrying FROM base_items WHERE name = ?").get(name);
+  return row ? Number(row.carrying) : 0;
+};
+
+// GET current rate
 router.get("/", (_req, res) => {
-  const row = db.prepare("SELECT value FROM settings WHERE key = 'exchange_rate'").get();
+  const row = baseDb.prepare("SELECT value FROM settings WHERE key = 'exchange_rate'").get();
   res.json({ exchange_rate: row ? Number(row.value) : 1 });
 });
 
-// PUT /api/exchange-rate - update the rate and cascade price recalculation.
+// PUT new rate, update all purchases PPP
 router.put("/", (req, res) => {
   const rate = Number(req.body.exchange_rate);
   if (!rate || Number.isNaN(rate) || rate <= 0) {
     return res.status(400).json({ error: "exchange_rate must be a positive number" });
   }
 
-  // Persist new rate so future operations use it.
-  db.prepare(
-    "INSERT INTO settings (key, value) VALUES ('exchange_rate', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
-  ).run(rate);
+  baseDb
+    .prepare(
+      "INSERT INTO settings (key, value) VALUES ('exchange_rate', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+    )
+    .run(rate);
 
-  // Recalculate dependent price fields for every item.
-  db.prepare(
-    "UPDATE items SET ppp = ch_price * ?, retail_price = ch_price * ?, ws_price = ch_price * ?"
-  ).run(rate, rate, rate);
+  // Recompute PPP for every purchase (price_rmb * rate + carrying from base items)
+  const purchases = purchaseDb.prepare("SELECT * FROM purchases").all();
+  const updateStmt = purchaseDb.prepare("UPDATE purchases SET ppp = ? WHERE id = ?");
+  purchases.forEach((p) => {
+    const carrying = getCarrying(p.name);
+    const ppp = (Number(p.price_rmb) || 0) * rate + carrying;
+    updateStmt.run(ppp, p.id);
+  });
 
   res.json({ exchange_rate: rate });
 });

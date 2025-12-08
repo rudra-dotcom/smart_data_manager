@@ -15,6 +15,7 @@ npm install
 npm run dev   # or: npm start
 ```
 - Env (optional): `PORT=5000`, `CLIENT_ORIGIN=http://localhost:5173`
+  - For chat-to-SQL via Groq, set `GROQ_API_KEY` (see `backend/.env.example`).
 
 2) Frontend
 ```bash

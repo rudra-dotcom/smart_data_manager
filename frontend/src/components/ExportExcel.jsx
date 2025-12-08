@@ -1,28 +1,10 @@
 import { useState } from "react";
 import * as XLSX from "xlsx";
 
-const SHEET_NAME = "Items";
-
-// Convert items to a sheet with ordered headers.
-const buildSheet = (items) => {
-  const headers = [
-    "id",
-    "name",
-    "brand",
-    "quality",
-    "ch_price",
-    "caring",
-    "ppp",
-    "retail_price",
-    "ws_price",
-    "quantity",
-    "created_at",
-  ];
-
-  const rows = items.map((item) =>
-    headers.map((key) => item[key] ?? "")
-  );
-
+// Convert items to a sheet using provided columns [{ key, label }]
+const buildSheet = (items, columns) => {
+  const headers = columns.map((c) => c.label);
+  const rows = items.map((item) => columns.map((c) => item[c.key] ?? ""));
   return XLSX.utils.aoa_to_sheet([headers, ...rows]);
 };
 
@@ -69,7 +51,7 @@ const saveWorkbook = async (workbook, filename, { isAppend }) => {
   return { fallbackDownload: null };
 };
 
-export default function ExportExcel({ items }) {
+export default function ExportExcel({ items, columns, filename = "items_export.xlsx", sheetName = "Items" }) {
   const [mode, setMode] = useState("new");
   const [existingFile, setExistingFile] = useState(null);
   const [message, setMessage] = useState("");
@@ -97,18 +79,18 @@ export default function ExportExcel({ items }) {
         workbook = XLSX.utils.book_new();
       }
 
-      const sheet = buildSheet(items);
-      workbook.Sheets[SHEET_NAME] = sheet;
+      const sheet = buildSheet(items, columns);
+      workbook.Sheets[sheetName] = sheet;
       // Ensure the sheet name is in the front of the list.
-      const otherNames = workbook.SheetNames.filter((n) => n !== SHEET_NAME);
-      workbook.SheetNames = [SHEET_NAME, ...otherNames];
+      const otherNames = workbook.SheetNames.filter((n) => n !== sheetName);
+      workbook.SheetNames = [sheetName, ...otherNames];
 
-      const filename = mode === "append" ? existingFile.name : "items_export.xlsx";
-      const { fallbackDownload } = await saveWorkbook(workbook, filename, { isAppend: mode === "append" });
+      const targetName = mode === "append" ? existingFile.name : filename;
+      const { fallbackDownload } = await saveWorkbook(workbook, targetName, { isAppend: mode === "append" });
       if (fallbackDownload) {
         setMessage(`Downloaded "${fallbackDownload}". Overwrite your original file manually to apply the update.`);
       } else {
-        setMessage(`Exported to ${filename}`);
+        setMessage(`Exported to ${targetName}`);
       }
     } catch (err) {
       console.error("Export failed", err);
@@ -166,8 +148,8 @@ export default function ExportExcel({ items }) {
       </div>
 
       <div className="text-xs text-slate-400 space-y-1">
-        <p>Creates/updates sheet "{SHEET_NAME}" with all items.</p>
-        <p>Append keeps other sheets in your file; create-new only contains the items sheet.</p>
+        <p>Creates/updates sheet "{sheetName}" with all rows.</p>
+        <p>Append keeps other sheets in your file; create-new only contains this sheet.</p>
         <p>If your browser cannot overwrite files in place, an updated copy is downloaded; you can overwrite the original manually.</p>
       </div>
 

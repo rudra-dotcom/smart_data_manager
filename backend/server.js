@@ -24,6 +24,9 @@ app.use((err, _req, res, _next) => {
   console.error("Unhandled error", err);
   res.status(500).json({ error: "Internal server error" });
 });
+app.get("/", (_req, res) => {
+  res.send("Backend is running");
+});
 
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { baseDb, purchaseDb } from "../db.js";
+import { baseDb, billsDb, purchasesDb, finalDb } from "../db.js";
 
 const router = Router();
 
@@ -8,29 +8,43 @@ You convert natural language to SAFE SQLite SELECT queries.
 - Output ONLY SQL wrapped inside <sql>...</sql> tags. No prose, no thinking text.
 - NEVER use INSERT/UPDATE/DELETE/PRAGMA; SELECT only.
 - Do not use multiple statements.
+- Whenever data is given convert them into form "YYYY-MM-DD" and accordinly use them in the query.
 - Tables:
-  base_items(id, name, carrying, brand_type, created_at)
-  purchases(id, name, price_rmb, quantity, ppp, wsp, rp, created_at)
-Use only the columns listed above. Example for a range: SELECT * FROM purchases WHERE ppp BETWEEN 1500 AND 2000 ORDER BY created_at DESC LIMIT 100;
+  base_items(name, brand, carrying, created_on)
+  bills(bill_no, vendor_name, created_on, exchange_rate, total_price, created_at)
+  purchases(id, bill_no, name, price, quantity, wsp, rp, ppp, created_on)
+  final_entries(name, brand, last_changed_on, bill_no, quantity, price, carrying, wsp, rp, ppp)
+Use only the columns listed above. Example for a range: SELECT * FROM purchases WHERE ppp BETWEEN 1500 AND 2000 ORDER BY created_on DESC;
 `;
 
+const tableForSheet = (sheet) => {
+  switch (sheet) {
+    case "base":
+      return { name: "base_items", db: baseDb, orderBy: "created_on" };
+    case "bills":
+      return { name: "bills", db: billsDb, orderBy: "created_on" };
+    case "purchases":
+      return { name: "purchases", db: purchasesDb, orderBy: "created_on" };
+    case "final":
+    default:
+      return { name: "final_entries", db: finalDb, orderBy: "last_changed_on" };
+  }
+};
+
 const buildPrompt = (sheet, question) => {
-  const table = sheet === "purchase" ? "purchases" : "base_items";
+  const table = tableForSheet(sheet).name;
   return `${schemaPrompt}
 Sheet "${sheet}" maps to table ${table}. Query ONLY this table.
-Always include ORDER BY created_at DESC and LIMIT 100.
+Always include ORDER BY and LIMIT 100.
 Respond with exactly: <sql>YOUR SELECT HERE</sql>
 User question: ${question}`;
 };
 
 router.post("/", async (req, res) => {
-  const { sheet, query } = req.body;
-  if (!sheet || !["base", "purchase"].includes(sheet)) {
-    return res.status(400).json({ error: "sheet must be 'base' or 'purchase'" });
-  }
+  const { sheet = "final", query } = req.body;
   if (!query?.trim()) return res.status(400).json({ error: "query is required" });
+  console.log("[chat] request", { sheet, query });
 
-  // NEVER hardcode keys; read from env.
   const key = process.env.GROQ_API_KEY;
   const model = process.env.GROQ_MODEL || "qwen/qwen3-32b";
   if (!key) return res.status(500).json({ error: "GROQ_API_KEY missing in backend .env" });
@@ -62,18 +76,15 @@ router.post("/", async (req, res) => {
     const data = await groqRes.json();
     console.log("[chat] groq response (truncated):", JSON.stringify(data)?.slice(0, 500));
     const raw = data.choices?.[0]?.message?.content || "";
-    const sql = extractSqlFromTags(raw);
+    const sql = extractSqlFromTags(raw, tableForSheet(sheet).orderBy);
     if (!sql) {
       console.error("[chat] invalid SQL from LLM:", raw);
       return res.status(400).json({ error: "LLM did not return a clean SELECT query in <sql> tags" });
     }
 
-    // Execute against the chosen table only.
     try {
-      const rows =
-        sheet === "purchase"
-          ? purchaseDb.prepare(sql).all()
-          : baseDb.prepare(sql).all();
+      const { db } = tableForSheet(sheet);
+      const rows = db.prepare(sql).all();
       console.log("[chat] executed SQL:", sql, "rows:", rows.length);
       res.json({ sql, rows });
     } catch (dbErr) {
@@ -87,20 +98,25 @@ router.post("/", async (req, res) => {
 });
 
 // Extract the SQL between <sql>...</sql>
-const extractSqlFromTags = (text = "") => {
+const extractSqlFromTags = (text = "", defaultOrder = "created_on") => {
   const match = text.match(/<sql>([\s\S]*?)<\/sql>/i);
   if (!match) return null;
   const inner = match[1].trim();
   if (!inner.toLowerCase().startsWith("select")) return null;
-  return ensureLimit(inner);
+  return ensureOrderAndLimit(inner, defaultOrder);
 };
 
-const ensureLimit = (sql) => {
+const ensureOrderAndLimit = (sql, defaultOrder) => {
+  const hasOrder = /\border\s+by\b/i.test(sql);
   const hasLimit = /\blimit\b\s+\d+/i.test(sql);
-  if (!hasLimit) {
-    return `${sql} LIMIT 100`;
+  let updated = sql;
+  if (!hasOrder) {
+    updated += ` ORDER BY ${defaultOrder} DESC`;
   }
-  return sql;
+  if (!hasLimit) {
+    updated += " LIMIT 100";
+  }
+  return updated;
 };
 
 export default router;

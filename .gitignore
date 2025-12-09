@@ -6,5 +6,16 @@
 /backend/.env.example
 /frontend/.env.example
 /backend/.env
-/backend/purchase.db
+/backend/purchases.db
+/backend/purchases.db-shm
+/backend/purchases.db-wal
+/backend/final.db
+/backend/final.db-shm
+/backend/final.db-wal
 /backend/base.db
+/backend/base.db-shm
+/backend/base.db-wal
+/backend/bills.db
+/backend/bills.db-shm
+/backend/bills.db-wal
+/backend/

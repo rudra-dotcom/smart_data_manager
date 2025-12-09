@@ -1,10 +1,8 @@
 import { useState } from "react";
 import axios from "axios";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5001";
-
-export default function ChatBox() {
-  const [sheet, setSheet] = useState("purchase");
+export default function ChatBox({ apiBase }) {
+  const [sheet, setSheet] = useState("final");
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState([]);
   const [sql, setSql] = useState("");
@@ -19,7 +17,7 @@ export default function ChatBox() {
     setLoading(true);
     setStatus("");
     try {
-      const res = await axios.post(`${API_BASE}/api/chat`, { sheet, query });
+      const res = await axios.post(`${apiBase}/api/chat`, { sheet, query });
       setRows(res.data.rows || []);
       setSql(res.data.sql || "");
       setStatus("");
@@ -40,18 +38,20 @@ export default function ChatBox() {
           onChange={(e) => setSheet(e.target.value)}
           className="rounded-lg bg-slate-800 text-slate-100 px-3 py-2 border border-slate-700 text-sm"
         >
-          <option value="base">Sheet 1 (Base)</option>
-          <option value="purchase">Sheet 2 (Purchases)</option>
+          <option value="final">File 4 (Final)</option>
+          <option value="base">File 1 (Base)</option>
+          <option value="bills">File 2 (Bills)</option>
+          <option value="purchases">File 3 (Purchases)</option>
         </select>
       </div>
       <p className="text-sm text-slate-400">
-        Offline rule-based interpreter (no external LLM). Try: "products between 3000 and 5000 PPP" or "apple items".
+        Queries stay inside the chosen file. Example: "show bills above 10000 total" or "items with PPP between 2000 and 3000".
       </p>
       <div className="flex gap-2 flex-wrap">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Ask about PPP ranges, price, brand, etc."
+          placeholder="Ask about PPP ranges, vendor names, brands, etc."
           className="flex-1 min-w-[240px] rounded-lg bg-slate-800 text-slate-50 px-3 py-2 border border-slate-700"
         />
         <button
@@ -85,7 +85,7 @@ function ResultTable({ rows }) {
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.id || JSON.stringify(row)} className="border-t border-slate-800 hover:bg-slate-800/60">
+            <tr key={row.id || row.bill_no || row.name} className="border-t border-slate-800 hover:bg-slate-800/60">
               {columns.map((c) => (
                 <td key={c} className="px-3 py-2 whitespace-nowrap">
                   {String(row[c] ?? "")}

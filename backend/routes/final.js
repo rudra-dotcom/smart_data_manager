@@ -43,17 +43,16 @@ router.put("/:name", (req, res) => {
   const existing = finalDb.prepare("SELECT * FROM final_entries WHERE name = ? COLLATE NOCASE").get(name);
   if (!existing) return res.status(404).json({ error: "Entry not found" });
 
-  const exchangeRate = Number(req.body.exchange_rate || 0);
-  const price = req.body.price !== undefined ? Number(req.body.price) : existing.price;
-  const quantity = req.body.quantity !== undefined ? Number(req.body.quantity) : existing.quantity;
+  // Preserve previous values for carrying, exchange_rate, price, quantity
+  const exchangeRate = existing.exchange_rate;
+  const price = existing.price;
+  const quantity = existing.quantity;
   const carrying = existing.carrying ?? getCarrying(name);
   const wsp = req.body.wsp === "" ? null : req.body.wsp !== undefined ? Number(req.body.wsp) : existing.wsp;
   const rp = req.body.rp === "" ? null : req.body.rp !== undefined ? Number(req.body.rp) : existing.rp;
 
-  let ppp = req.body.ppp !== undefined && req.body.ppp !== "" ? Number(req.body.ppp) : existing.ppp;
-  if (exchangeRate > 0 && (req.body.ppp === undefined || req.body.ppp === "")) {
-    ppp = price * exchangeRate + carrying;
-  }
+  // Keep PPP as is (blocked from user changes)
+  const ppp = existing.ppp;
 
   finalDb
     .prepare(

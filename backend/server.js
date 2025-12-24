@@ -6,6 +6,7 @@ import baseItemsRouter from "./routes/baseItems.js";
 import chatRouter from "./routes/chat.js";
 import billsRouter from "./routes/bills.js";
 import finalRouter from "./routes/final.js";
+import purchasesRouter from "./routes/purchases.js";
 
 dotenv.config();
 
@@ -18,6 +19,7 @@ app.use(express.json());
 app.use("/api/base-items", baseItemsRouter);
 app.use("/api/bills", billsRouter);
 app.use("/api/final", finalRouter);
+app.use("/api/purchases", purchasesRouter);
 app.use("/api/chat", chatRouter);
 
 app.use((err, _req, res, _next) => {

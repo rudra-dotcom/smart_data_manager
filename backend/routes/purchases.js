@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { baseDb, purchaseDb } from "../db.js";
+import { baseDb, purchasesDb } from "../db.js";
 
 const router = Router();
 
@@ -23,9 +23,9 @@ const computePPP = (name, priceRmb) => {
 router.get("/search", (req, res) => {
   const query = req.query.query?.trim();
   if (!query) return res.json([]);
-  const items = purchaseDb
+  const items = purchasesDb
     .prepare(
-      `SELECT * FROM purchases WHERE name LIKE ? ORDER BY created_at DESC LIMIT 20`
+      `SELECT * FROM purchases WHERE name LIKE ? ORDER BY created_on DESC LIMIT 20`
     )
     .all(`%${query}%`);
   res.json(items);
@@ -33,60 +33,60 @@ router.get("/search", (req, res) => {
 
 // POST /api/purchases
 router.post("/", (req, res) => {
-  const { name, price_rmb = 0, quantity = 0, wsp = null, rp = null } = req.body;
+  const { name, price_rmb = 0, quantity = 0, wsp = null, rp = null, bill_no = null } = req.body;
   if (!name?.trim()) return res.status(400).json({ error: "name is required" });
   const price = Number(price_rmb) || 0;
   const ppp = computePPP(name.trim(), price);
 
-  const stmt = purchaseDb.prepare(
-    `INSERT INTO purchases (name, price_rmb, quantity, ppp, wsp, rp, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
+  const stmt = purchasesDb.prepare(
+    `INSERT INTO purchases (bill_no, name, price, quantity, ppp, wsp, rp, created_on)
+     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`
   );
-  const result = stmt.run(name.trim(), price, Number(quantity) || 0, ppp, wsp !== undefined ? Number(wsp) : null, rp !== undefined ? Number(rp) : null);
-  const created = purchaseDb.prepare("SELECT * FROM purchases WHERE id = ?").get(result.lastInsertRowid);
+  const result = stmt.run(bill_no || 0, name.trim(), price, Number(quantity) || 0, ppp, wsp !== undefined ? Number(wsp) : null, rp !== undefined ? Number(rp) : null);
+  const created = purchasesDb.prepare("SELECT * FROM purchases WHERE id = ?").get(result.lastInsertRowid);
   res.status(201).json(created);
 });
 
 // GET /api/purchases
 router.get("/", (_req, res) => {
-  const rows = purchaseDb.prepare("SELECT * FROM purchases ORDER BY created_at DESC").all();
+  const rows = purchasesDb.prepare("SELECT * FROM purchases ORDER BY created_on DESC").all();
   res.json(rows);
 });
 
 // GET /api/purchases/:id
 router.get("/:id", (req, res) => {
-  const row = purchaseDb.prepare("SELECT * FROM purchases WHERE id = ?").get(req.params.id);
+  const row = purchasesDb.prepare("SELECT * FROM purchases WHERE id = ?").get(req.params.id);
   if (!row) return res.status(404).json({ error: "not found" });
   res.json(row);
 });
 
 // PUT /api/purchases/:id
 router.put("/:id", (req, res) => {
-  const existing = purchaseDb.prepare("SELECT * FROM purchases WHERE id = ?").get(req.params.id);
+  const existing = purchasesDb.prepare("SELECT * FROM purchases WHERE id = ?").get(req.params.id);
   if (!existing) return res.status(404).json({ error: "not found" });
 
   const name = req.body.name?.trim() || existing.name;
-  const price = req.body.price_rmb !== undefined ? Number(req.body.price_rmb) : existing.price_rmb;
+  const price = req.body.price_rmb !== undefined ? Number(req.body.price_rmb) : existing.price;
   const quantity = req.body.quantity !== undefined ? Number(req.body.quantity) : existing.quantity;
   const wsp = req.body.wsp !== undefined ? Number(req.body.wsp) : existing.wsp;
   const rp = req.body.rp !== undefined ? Number(req.body.rp) : existing.rp;
 
   const ppp = computePPP(name, price);
 
-  purchaseDb
+  purchasesDb
     .prepare(
       `UPDATE purchases
-       SET name = ?, price_rmb = ?, quantity = ?, ppp = ?, wsp = ?, rp = ?
+       SET name = ?, price = ?, quantity = ?, ppp = ?, wsp = ?, rp = ?
        WHERE id = ?`
     )
     .run(name, price, quantity, ppp, wsp, rp, req.params.id);
-  const updated = purchaseDb.prepare("SELECT * FROM purchases WHERE id = ?").get(req.params.id);
+  const updated = purchasesDb.prepare("SELECT * FROM purchases WHERE id = ?").get(req.params.id);
   res.json(updated);
 });
 
 // DELETE /api/purchases/:id
 router.delete("/:id", (req, res) => {
-  const result = purchaseDb.prepare("DELETE FROM purchases WHERE id = ?").run(req.params.id);
+  const result = purchasesDb.prepare("DELETE FROM purchases WHERE id = ?").run(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: "not found" });
   res.json({ success: true });
 });

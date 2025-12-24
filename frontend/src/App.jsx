@@ -3,7 +3,7 @@ import axios from "axios";
 import ExportExcel from "./components/ExportExcel.jsx";
 import ChatBox from "./components/ChatBox.jsx";
 
-const API_BASE = "http://51.20.35.200:5001" || import.meta.env.VITE_API_URL || "http://localhost:5001";
+const API_BASE = "http://localhost:5001" || "http://51.20.35.200:5001" || import.meta.env.VITE_API_URL ;
 
 const baseColumns = [
   { key: "name", label: "Name" },
@@ -23,6 +23,17 @@ const finalColumns = [
   { key: "wsp", label: "WSP" },
   { key: "rp", label: "RP" },
   { key: "ppp", label: "PPP" },
+];
+
+const purchaseColumns = [
+  { key: "name", label: "Name" },
+  { key: "price", label: "Price" },
+  { key: "quantity", label: "Quantity" },
+  { key: "ppp", label: "PPP" },
+  { key: "wsp", label: "WSP" },
+  { key: "rp", label: "RP" },
+  { key: "bill_no", label: "Bill No" },
+  { key: "created_on", label: "Created On" },
 ];
 
 const today = new Date();
@@ -71,6 +82,7 @@ export default function App() {
     ppp: "",
     carrying: "",
   });
+  const [purchases, setPurchases] = useState([]);
   const [finalStatus, setFinalStatus] = useState("");
 
   useEffect(() => {
@@ -78,6 +90,7 @@ export default function App() {
     fetchBills();
     fetchFinalEntries();
     fetchFinalNames();
+    fetchPurchases();
   }, []);
 
   useEffect(() => {
@@ -149,6 +162,15 @@ export default function App() {
       setFinalNames(res.data || []);
     } catch (err) {
       console.error("load final names failed", err);
+    }
+  };
+
+  const fetchPurchases = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/api/purchases`);
+      setPurchases(res.data || []);
+    } catch (err) {
+      console.error("load purchases failed", err);
     }
   };
 
@@ -262,6 +284,7 @@ export default function App() {
       await refreshBillDetail(activeBill.bill_no);
       fetchFinalEntries();
       fetchFinalNames();
+      fetchPurchases();
       if (complete) {
         setActiveBill(null);
         setActiveBillItems([]);
@@ -286,6 +309,7 @@ export default function App() {
       if (billDetail?.bill_no === billNo) setBillDetail(null);
       fetchBills(billFilters);
       fetchFinalEntries();
+      fetchPurchases();
       setBillStatus("Bill deleted.");
     } catch (err) {
       console.error("delete bill failed", err);
@@ -299,6 +323,7 @@ export default function App() {
       await refreshBillDetail(billNo);
       fetchBills(billFilters);
       fetchFinalEntries();
+      fetchPurchases();
       setBillStatus("Bill updated.");
     } catch (err) {
       console.error("update bill meta failed", err);
@@ -312,6 +337,7 @@ export default function App() {
       await refreshBillDetail(billNo);
       fetchBills(billFilters);
       fetchFinalEntries();
+      fetchPurchases();
       setBillStatus("Item updated.");
     } catch (err) {
       console.error("update bill item failed", err);
@@ -325,6 +351,7 @@ export default function App() {
       await refreshBillDetail(billNo);
       fetchBills(billFilters);
       fetchFinalEntries();
+      fetchPurchases();
       setBillStatus("Item deleted.");
     } catch (err) {
       console.error("delete bill item failed", err);
@@ -332,22 +359,12 @@ export default function App() {
     }
   };
 
-  const computedFinalPPP = useMemo(() => {
-    const price = Number(finalForm.price || 0);
-    const rate = Number(finalForm.exchange_rate || 0);
-    const carrying = Number(finalForm.carrying || 0);
-    if (rate > 0) {
-      return price * rate + carrying;
-    }
-    return null;
-  }, [finalForm.price, finalForm.exchange_rate, finalForm.carrying]);
-
   const handleFinalSelect = (name) => {
     const entry = finalEntries.find((f) => f.name?.toLowerCase() === name?.toLowerCase());
     if (entry) {
       setFinalForm({
         name: entry.name,
-        exchange_rate: "",
+        exchange_rate: entry.exchange_rate ?? "",
         price: entry.price ?? "",
         quantity: entry.quantity ?? "",
         wsp: entry.wsp ?? "",
@@ -368,12 +385,8 @@ export default function App() {
     }
     try {
       const payload = {
-        exchange_rate: finalForm.exchange_rate,
-        price: finalForm.price,
-        quantity: finalForm.quantity,
         wsp: finalForm.wsp,
         rp: finalForm.rp,
-        ppp: finalForm.ppp || computedFinalPPP,
       };
       await axios.put(`${API_BASE}/api/final/${finalForm.name}`, payload);
       setFinalStatus("Final entry updated.");
@@ -696,6 +709,10 @@ export default function App() {
             />
           </div>
         )}
+        <div className="grid md:grid-cols-[2fr,1fr] gap-4 items-start">
+          <div></div>
+          <ExportExcel items={purchases} columns={purchaseColumns} filename="file3_purchases.xlsx" sheetName="Purchases" />
+        </div>
       </section>
 
       <section className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl shadow-emerald-500/5 space-y-5">
@@ -721,36 +738,18 @@ export default function App() {
               ))}
             </datalist>
           </div>
-          <Input
-            label="Exchange Rate"
-            type="number"
-            step="0.01"
-            value={finalForm.exchange_rate}
-            onChange={(v) => setFinalForm((p) => ({ ...p, exchange_rate: v }))}
-          />
-          <Input label="Price" type="number" step="0.01" value={finalForm.price} onChange={(v) => setFinalForm((p) => ({ ...p, price: v }))} />
-          <Input label="Quantity" type="number" value={finalForm.quantity} onChange={(v) => setFinalForm((p) => ({ ...p, quantity: v }))} />
           <Input label="WSP" type="number" step="0.01" value={finalForm.wsp} onChange={(v) => setFinalForm((p) => ({ ...p, wsp: v }))} />
           <Input label="RP" type="number" step="0.01" value={finalForm.rp} onChange={(v) => setFinalForm((p) => ({ ...p, rp: v }))} />
-          <Input
-            label="Carrying"
-            type="number"
-            step="0.01"
-            value={finalForm.carrying}
-            onChange={(v) => setFinalForm((p) => ({ ...p, carrying: v }))}
-          />
           <div className="text-sm text-slate-200 space-y-1">
-            <span className="block text-slate-300">PPP (auto but editable)</span>
+            <span className="block text-slate-300">PPP (read-only)</span>
             <input
               type="number"
               step="0.01"
               value={finalForm.ppp}
-              onChange={(e) => setFinalForm((p) => ({ ...p, ppp: e.target.value }))}
-              className="w-full rounded-lg bg-slate-800 text-slate-50 px-3 py-2 border border-slate-700"
+              readOnly
+              disabled
+              className="w-full rounded-lg bg-slate-700 text-slate-400 px-3 py-2 border border-slate-600 cursor-not-allowed"
             />
-            {computedFinalPPP !== null && (
-              <p className="text-xs text-slate-400">Auto PPP suggestion: {computedFinalPPP.toFixed(2)}</p>
-            )}
           </div>
           <button
             type="submit"

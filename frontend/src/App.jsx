@@ -474,7 +474,16 @@ export default function App() {
             setEditingBaseName(item.name);
             setBaseForm({ name: item.name, brand: item.brand, carrying: item.carrying });
           }} onDelete={handleBaseDelete} />
-          <ExportExcel items={baseItems} columns={baseColumns} filename="file1_base.xlsx" sheetName="Base" />
+          <ExportExcel 
+            items={baseItems} 
+            columns={baseColumns} 
+            filename="file1_base.xlsx" 
+            sheetName="Base"
+            fetchAllItems={async () => {
+              const res = await axios.get(`${API_BASE}/api/base-items`, { params: { all: true } });
+              return res.data || [];
+            }}
+          />
         </div>
       </section>
 
@@ -770,7 +779,16 @@ export default function App() {
         {finalStatus && <p className="text-sm text-emerald-200">{finalStatus}</p>}
         <div className="grid md:grid-cols-[2fr,1fr] gap-4 items-start">
           <FinalTable entries={finalEntries} />
-          <ExportExcel items={finalEntries} columns={finalColumns} filename="file4_final.xlsx" sheetName="Final" />
+          <ExportExcel 
+            items={finalEntries} 
+            columns={finalColumns} 
+            filename="file4_final.xlsx" 
+            sheetName="Final"
+            fetchAllItems={async () => {
+              const res = await axios.get(`${API_BASE}/api/final`, { params: { all: true } });
+              return res.data || [];
+            }}
+          />
         </div>
       </section>
 

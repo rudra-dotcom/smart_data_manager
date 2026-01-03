@@ -56,10 +56,14 @@ router.post("/", (req, res) => {
   }
 });
 
-// GET /api/base-items
-router.get("/", (_req, res) => {
-  console.log("[base] list all");
-  const rows = baseDb.prepare("SELECT * FROM base_items ORDER BY created_on DESC LIMIT 5").all();
+// GET /api/base-items?all=true
+router.get("/", (req, res) => {
+  const getAll = req.query.all === "true";
+  console.log("[base] list all", getAll ? "(all items)" : "(limited)");
+  const query = getAll 
+    ? "SELECT * FROM base_items ORDER BY created_on DESC"
+    : "SELECT * FROM base_items ORDER BY created_on DESC LIMIT 5";
+  const rows = baseDb.prepare(query).all();
   res.json(rows);
 });
 

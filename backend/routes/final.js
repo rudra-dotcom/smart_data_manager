@@ -10,19 +10,22 @@ const getCarrying = (name) => {
   return row ? Number(row.carrying) || 0 : 0;
 };
 
-// GET /api/final
+// GET /api/final?all=true
 router.get("/", (req, res) => {
   const name = req.query.name?.trim();
-  console.log("[final] list filter", name);
+  const getAll = req.query.all === "true";
+  console.log("[final] list filter", name, getAll ? "(all items)" : "(limited)");
   let rows;
   if (name) {
-    rows = finalDb
-      .prepare(
-        `SELECT * FROM final_entries WHERE name LIKE ? COLLATE NOCASE ORDER BY last_changed_on DESC LIMIT 5`
-      )
-      .all(`%${name}%`);
+    const query = getAll
+      ? `SELECT * FROM final_entries WHERE name LIKE ? COLLATE NOCASE ORDER BY last_changed_on DESC`
+      : `SELECT * FROM final_entries WHERE name LIKE ? COLLATE NOCASE ORDER BY last_changed_on DESC LIMIT 5`;
+    rows = finalDb.prepare(query).all(`%${name}%`);
   } else {
-    rows = finalDb.prepare("SELECT * FROM final_entries ORDER BY last_changed_on DESC LIMIT 5").all();
+    const query = getAll
+      ? "SELECT * FROM final_entries ORDER BY last_changed_on DESC"
+      : "SELECT * FROM final_entries ORDER BY last_changed_on DESC LIMIT 5";
+    rows = finalDb.prepare(query).all();
   }
   res.json(rows);
 });

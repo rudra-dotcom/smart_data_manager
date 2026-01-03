@@ -51,21 +51,29 @@ const saveWorkbook = async (workbook, filename, { isAppend }) => {
   return { fallbackDownload: null };
 };
 
-export default function ExportExcel({ items, columns, filename = "items_export.xlsx", sheetName = "Items" }) {
+export default function ExportExcel({ items, columns, filename = "items_export.xlsx", sheetName = "Items", fetchAllItems }) {
   const [mode, setMode] = useState("new");
   const [existingFile, setExistingFile] = useState(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
   const handleExport = async () => {
-    if (!items.length) {
-      setMessage("No items to export.");
-      return;
-    }
     setBusy(true);
     setMessage("");
 
     try {
+      // If fetchAllItems is provided, use it to get all items; otherwise use the items prop
+      let itemsToExport = items;
+      if (fetchAllItems) {
+        itemsToExport = await fetchAllItems();
+      }
+
+      if (!itemsToExport || !itemsToExport.length) {
+        setMessage("No items to export.");
+        setBusy(false);
+        return;
+      }
+
       let workbook;
 
       if (mode === "append") {
@@ -79,7 +87,7 @@ export default function ExportExcel({ items, columns, filename = "items_export.x
         workbook = XLSX.utils.book_new();
       }
 
-      const sheet = buildSheet(items, columns);
+      const sheet = buildSheet(itemsToExport, columns);
       workbook.Sheets[sheetName] = sheet;
       // Ensure the sheet name is in the front of the list.
       const otherNames = workbook.SheetNames.filter((n) => n !== sheetName);
@@ -90,7 +98,7 @@ export default function ExportExcel({ items, columns, filename = "items_export.x
       if (fallbackDownload) {
         setMessage(`Downloaded "${fallbackDownload}". Overwrite your original file manually to apply the update.`);
       } else {
-        setMessage(`Exported to ${targetName}`);
+        setMessage(`Exported ${itemsToExport.length} items to ${targetName}`);
       }
     } catch (err) {
       console.error("Export failed", err);

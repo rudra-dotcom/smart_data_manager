@@ -59,7 +59,7 @@ router.post("/", (req, res) => {
 // GET /api/base-items
 router.get("/", (_req, res) => {
   console.log("[base] list all");
-  const rows = baseDb.prepare("SELECT * FROM base_items ORDER BY created_on DESC").all();
+  const rows = baseDb.prepare("SELECT * FROM base_items ORDER BY created_on DESC LIMIT 5").all();
   res.json(rows);
 });
 

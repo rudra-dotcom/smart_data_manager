@@ -18,11 +18,11 @@ router.get("/", (req, res) => {
   if (name) {
     rows = finalDb
       .prepare(
-        `SELECT * FROM final_entries WHERE name LIKE ? COLLATE NOCASE ORDER BY last_changed_on DESC`
+        `SELECT * FROM final_entries WHERE name LIKE ? COLLATE NOCASE ORDER BY last_changed_on DESC LIMIT 5`
       )
       .all(`%${name}%`);
   } else {
-    rows = finalDb.prepare("SELECT * FROM final_entries ORDER BY last_changed_on DESC").all();
+    rows = finalDb.prepare("SELECT * FROM final_entries ORDER BY last_changed_on DESC LIMIT 5").all();
   }
   res.json(rows);
 });

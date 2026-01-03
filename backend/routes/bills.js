@@ -79,11 +79,11 @@ const refreshFinalFromPurchases = (name) => {
 };
 
 const recomputeBillTotal = (billNo) => {
-  const rows = purchasesDb.prepare("SELECT quantity, ppp FROM purchases WHERE bill_no = ?").all(billNo);
+  const rows = purchasesDb.prepare("SELECT quantity, price FROM purchases WHERE bill_no = ?").all(billNo);
   const total = rows.reduce((sum, row) => {
     const qty = Number(row.quantity) || 0;
-    const ppp = Number(row.ppp) || 0;
-    return sum + qty * ppp;
+    const price = Number(row.price) || 0;
+    return sum + qty * price;
   }, 0);
   billsDb.prepare("UPDATE bills SET total_price = ? WHERE bill_no = ?").run(total, billNo);
   console.log("[bill] recomputed total", { billNo, total, count: rows.length });
@@ -111,7 +111,7 @@ router.post("/", (req, res) => {
 // GET /api/bills
 router.get("/", (_req, res) => {
   console.log("[bill] list all");
-  const rows = billsDb.prepare("SELECT * FROM bills ORDER BY created_on DESC, bill_no DESC").all();
+  const rows = billsDb.prepare("SELECT * FROM bills ORDER BY created_on DESC, bill_no DESC LIMIT 5").all();
   res.json(rows);
 });
 
@@ -123,7 +123,7 @@ router.get("/search", (req, res) => {
   console.log("[bill] search", { vendor, createdOn, name });
 
   if (!vendor && !createdOn && !name) {
-    const rows = billsDb.prepare("SELECT * FROM bills ORDER BY created_on DESC, bill_no DESC").all();
+    const rows = billsDb.prepare("SELECT * FROM bills ORDER BY created_on DESC, bill_no DESC LIMIT 5").all();
     return res.json(rows);
   }
 

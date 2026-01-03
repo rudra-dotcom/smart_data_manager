@@ -218,6 +218,9 @@ export default function App() {
   };
 
   const handleBaseDelete = async (name) => {
+    if (!confirm(`Are you sure you want to delete "${name}"?`)) {
+      return;
+    }
     try {
       await axios.delete(`${API_BASE}/api/base-items/${name}`);
       if (editingBaseName === name) setEditingBaseName(null);
@@ -300,6 +303,9 @@ export default function App() {
   };
 
   const handleBillDelete = async (billNo) => {
+    if (!confirm(`Are you sure you want to delete Bill #${billNo}?`)) {
+      return;
+    }
     try {
       await axios.delete(`${API_BASE}/api/bills/${billNo}`);
       if (activeBill?.bill_no === billNo) {
@@ -346,6 +352,9 @@ export default function App() {
   };
 
   const handleBillItemDelete = async (billNo, itemId) => {
+    if (!confirm("Are you sure you want to delete this item?")) {
+      return;
+    }
     try {
       await axios.delete(`${API_BASE}/api/bills/${billNo}/items/${itemId}`);
       await refreshBillDetail(billNo);
@@ -577,7 +586,7 @@ export default function App() {
                 </div>
               </div>
               <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 space-y-2">
-                <p className="text-sm text-slate-300">Current total (PPP × quantity)</p>
+                <p className="text-sm text-slate-300">Current total (Price × quantity)</p>
                 <p className="text-2xl font-semibold text-amber-200">
                   {Number(activeBill.total_price || 0).toFixed(2)}
                 </p>
@@ -699,7 +708,7 @@ export default function App() {
               }
               className="bg-slate-700 text-slate-100 rounded-lg px-3 py-2 w-full md:w-auto"
             >
-              Save Bill Meta
+              Modify Bill
             </button>
             <BillItemsTable
               items={billDetail.items || []}

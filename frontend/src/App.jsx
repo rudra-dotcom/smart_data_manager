@@ -47,6 +47,7 @@ const startBillDate = {
 export default function App() {
   const [baseItems, setBaseItems] = useState([]);
   const [brandOptions, setBrandOptions] = useState([]);
+  const [baseNameOptions, setBaseNameOptions] = useState([]);
   const [baseForm, setBaseForm] = useState({ name: "", brand: "", carrying: "" });
   const [editingBaseName, setEditingBaseName] = useState(null);
   const [statusBase, setStatusBase] = useState("");
@@ -124,6 +125,31 @@ export default function App() {
     }, 250);
     return () => clearTimeout(timer);
   }, [billFilters]);
+
+  useEffect(() => {
+    if (!billItemForm.name) {
+      setBaseNameOptions([]);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/api/base-items/search`, {
+          params: { query: billItemForm.name },
+          signal: controller.signal,
+        });
+        setBaseNameOptions(res.data || []);
+      } catch (error) {
+        if (error.name !== "CanceledError") {
+          console.error("base name search failed", error);
+        }
+      }
+    }, 200);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [billItemForm.name]);
 
   const fetchBaseItems = async () => {
     console.log("[ui] fetch base items");
@@ -536,7 +562,7 @@ export default function App() {
                       placeholder="Name"
                     />
                     <datalist id="base-names">
-                      {baseItems.map((b) => (
+                      {baseNameOptions.map((b) => (
                         <option key={b.name} value={b.name} />
                       ))}
                     </datalist>

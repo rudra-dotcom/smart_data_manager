@@ -37,6 +37,16 @@ router.get("/names/all", (_req, res) => {
   res.json(rows.map((r) => r.name));
 });
 
+// GET /api/final/by-name/:name - Get exact match by name
+router.get("/by-name/:name", (req, res) => {
+  const name = req.params.name?.trim();
+  console.log("[final] get by name", name);
+  if (!name) return res.status(400).json({ error: "Name is required" });
+  const row = finalDb.prepare("SELECT * FROM final_entries WHERE name = ? COLLATE NOCASE").get(name);
+  if (!row) return res.status(404).json({ error: "not found" });
+  res.json(row);
+});
+
 // PUT /api/final/:name
 router.put("/:name", (req, res) => {
   const name = req.params.name?.trim();

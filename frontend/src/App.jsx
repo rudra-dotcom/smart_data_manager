@@ -151,6 +151,44 @@ export default function App() {
     };
   }, [billItemForm.name]);
 
+  // Fetch WSP and RP from final.db when name is selected
+  useEffect(() => {
+    const fetchWspRpFromFinal = async () => {
+      if (!billItemForm.name?.trim()) {
+        return;
+      }
+      try {
+        const res = await axios.get(`${API_BASE}/api/final/by-name/${encodeURIComponent(billItemForm.name.trim())}`);
+        const finalEntry = res.data;
+        
+        if (finalEntry) {
+          // Update WSP and RP with values from final.db, or 0 if null/undefined
+          setBillItemForm((prev) => ({
+            ...prev,
+            wsp: finalEntry.wsp !== null && finalEntry.wsp !== undefined ? String(finalEntry.wsp) : "0",
+            rp: finalEntry.rp !== null && finalEntry.rp !== undefined ? String(finalEntry.rp) : "0",
+          }));
+        }
+      } catch (error) {
+        // If not found (404) or any other error, set to 0
+        if (error.response?.status !== 404) {
+          console.error("Failed to fetch WSP/RP from final.db", error);
+        }
+        setBillItemForm((prev) => ({
+          ...prev,
+          wsp: "0",
+          rp: "0",
+        }));
+      }
+    };
+
+    const timer = setTimeout(() => {
+      fetchWspRpFromFinal();
+    }, 300); // Small delay to avoid too many calls while typing
+
+    return () => clearTimeout(timer);
+  }, [billItemForm.name]);
+
   const fetchBaseItems = async () => {
     console.log("[ui] fetch base items");
     try {

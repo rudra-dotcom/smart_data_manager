@@ -67,6 +67,7 @@ export default function App() {
   const [activeBill, setActiveBill] = useState(null);
   const [activeBillItems, setActiveBillItems] = useState([]);
   const [billStatus, setBillStatus] = useState("");
+  const [pppFromFinal, setPppFromFinal] = useState(null);
   const [bills, setBills] = useState([]);
   const [billFilters, setBillFilters] = useState({ vendor_name: "", created_on: "", name: "" });
   const [billDetail, setBillDetail] = useState(null);
@@ -151,10 +152,11 @@ export default function App() {
     };
   }, [billItemForm.name]);
 
-  // Fetch WSP and RP from final.db when name is selected
+  // Fetch WSP, RP, and PPP from final.db when name is selected
   useEffect(() => {
-    const fetchWspRpFromFinal = async () => {
+    const fetchWspRpPppFromFinal = async () => {
       if (!billItemForm.name?.trim()) {
+        setPppFromFinal(null);
         return;
       }
       try {
@@ -168,22 +170,31 @@ export default function App() {
             wsp: finalEntry.wsp !== null && finalEntry.wsp !== undefined ? String(finalEntry.wsp) : "0",
             rp: finalEntry.rp !== null && finalEntry.rp !== undefined ? String(finalEntry.rp) : "0",
           }));
+          // Store PPP from final.db if available
+          if (finalEntry.ppp !== null && finalEntry.ppp !== undefined) {
+            setPppFromFinal(Number(finalEntry.ppp));
+          } else {
+            setPppFromFinal(null);
+          }
+        } else {
+          setPppFromFinal(null);
         }
       } catch (error) {
-        // If not found (404) or any other error, set to 0
+        // If not found (404) or any other error, set to 0 and clear PPP
         if (error.response?.status !== 404) {
-          console.error("Failed to fetch WSP/RP from final.db", error);
+          console.error("Failed to fetch WSP/RP/PPP from final.db", error);
         }
         setBillItemForm((prev) => ({
           ...prev,
           wsp: "0",
           rp: "0",
         }));
+        setPppFromFinal(null);
       }
     };
 
     const timer = setTimeout(() => {
-      fetchWspRpFromFinal();
+      fetchWspRpPppFromFinal();
     }, 300); // Small delay to avoid too many calls while typing
 
     return () => clearTimeout(timer);
@@ -246,15 +257,19 @@ export default function App() {
   };
 
   const carryingForItem = useMemo(() => {
-    const target = baseItems.find((b) => b.name?.toLowerCase() === billItemForm.name?.toLowerCase());
+    // First try to find in baseNameOptions (search results with all items)
+    let target = baseNameOptions.find((b) => b.name?.toLowerCase() === billItemForm.name?.toLowerCase());
+    // If not found in search results, fallback to baseItems (limited to 5 items)
+    if (!target) {
+      target = baseItems.find((b) => b.name?.toLowerCase() === billItemForm.name?.toLowerCase());
+    }
     return target ? Number(target.carrying) || 0 : 0;
-  }, [billItemForm.name, baseItems]);
+  }, [billItemForm.name, baseNameOptions, baseItems]);
 
   const computedPPP = useMemo(() => {
     const price = Number(billItemForm.price) || 0;
-    const rate = Number(activeBill?.exchange_rate || billHeader.exchange_rate || 0) || 0;
-    return price * rate + carryingForItem;
-  }, [billItemForm.price, billHeader.exchange_rate, activeBill, carryingForItem]);
+    return price * 1 + carryingForItem;
+  }, [billItemForm.price, carryingForItem]);
 
   const handleBaseSubmit = async (e) => {
     e.preventDefault();
@@ -348,6 +363,7 @@ export default function App() {
       console.log("[ui] add item", payload);
       await axios.post(`${API_BASE}/api/bills/${activeBill.bill_no}/items`, payload);
       setBillItemForm({ name: "", price: "", quantity: "", wsp: "", rp: "" });
+      setPppFromFinal(null);
       await refreshBillDetail(activeBill.bill_no);
       fetchFinalEntries();
       fetchFinalNames();
@@ -635,7 +651,9 @@ export default function App() {
                     onChange={(v) => setBillItemForm((p) => ({ ...p, rp: v }))}
                   />
                   <div className="text-sm text-slate-200 space-y-1">
-                    <span className="block text-slate-300">PPP (auto)</span>
+                    <span className="block text-slate-300">
+                      {pppFromFinal !== null ? `PPP older = ${pppFromFinal.toFixed(2)}` : "PPP (first time feed)"}
+                    </span>
                     <div className="w-full rounded-lg bg-slate-900 text-amber-200 px-3 py-2 border border-slate-700">
                       {Number.isFinite(computedPPP) ? computedPPP.toFixed(2) : "—"}
                     </div>

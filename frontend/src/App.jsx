@@ -268,8 +268,9 @@ export default function App() {
 
   const computedPPP = useMemo(() => {
     const price = Number(billItemForm.price) || 0;
-    return price * 1 + carryingForItem;
-  }, [billItemForm.price, carryingForItem]);
+    const rate = Number(activeBill?.exchange_rate || billHeader.exchange_rate || 0) || 0;
+    return price * rate + carryingForItem;
+  }, [billItemForm.price, billHeader.exchange_rate, activeBill, carryingForItem]);
 
   const handleBaseSubmit = async (e) => {
     e.preventDefault();
